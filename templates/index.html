@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Imágenes con Gemini</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Alinea al inicio para que el contenido no se pegue al centro vertical */
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        .form-label {
+            font-weight: bold;
+            color: #343a40;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #004085;
+            transform: translateY(-2px);
+        }
+        #resultImage {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            display: none; /* Ocultar hasta que se cargue la imagen */
+        }
+        .loading-spinner {
+            display: none; /* Oculto por defecto */
+            margin-top: 20px;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .alert-custom {
+            margin-top: 20px;
+            display: none; /* Oculto por defecto */
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4 text-primary">Análisis de imágenes con Gemini AI</h1>
+        <p class="text-center text-muted mb-5">Sube una imagen y deja que la IA genere una frase divertida para ella.</p>
+
+        <form id="imageUploadForm" class="mb-4">
+            <div class="mb-3">
+                <label for="imageInput" class="form-label">Selecciona una imagen</label>
+                <input class="form-control" type="file" id="imageInput" accept="image/*" required>
+            </div>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">
+                    Analizar Imagen
+                </button>
+            </div>
+        </form>
+
+        <div class="loading-spinner mx-auto" id="loadingSpinner"></div>
+        <div class="alert alert-danger alert-custom" role="alert" id="errorMessage"></div>
+
+        <div class="text-center mt-4">
+            <img id="resultImage" src="#" alt="Imagen procesada">
+        </div>
+    </div>
+
+    <!-- Bootstrap JS (bundle includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+        document.getElementById('imageUploadForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Previene el envío del formulario por defecto
+
+            const imageInput = document.getElementById('imageInput');
+            const resultImage = document.getElementById('resultImage');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Ocultar resultados anteriores y mensajes de error
+            resultImage.style.display = 'none';
+            resultImage.src = '#';
+            errorMessage.style.display = 'none';
+            errorMessage.textContent = '';
+
+            // Mostrar spinner de carga
+            loadingSpinner.style.display = 'block';
+
+            if (imageInput.files.length === 0) {
+                loadingSpinner.style.display = 'none';
+                errorMessage.textContent = 'Por favor, selecciona una imagen para subir.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            const file = imageInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file); // 'file' debe coincidir con el nombre del parámetro en FastAPI
+
+            try {
+                const response = await fetch('/analyze_image/', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    // Si la respuesta es exitosa, es una imagen
+                    const imageBlob = await response.blob();
+                    const imageUrl = URL.createObjectURL(imageBlob);
+                    resultImage.src = imageUrl;
+                    resultImage.style.display = 'block'; // Mostrar la imagen
+                } else {
+                    // Si hay un error en la respuesta de la API
+                    const errorData = await response.json();
+                    errorMessage.textContent = errorData.detail || 'Ocurrió un error al procesar la imagen.';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                // Si hay un error de red o fetch
+                console.error('Error:', error);
+                errorMessage.textContent = 'Error de conexión con el servidor. Por favor, inténtalo de nuevo.';
+                errorMessage.style.display = 'block';
+            } finally {
+                loadingSpinner.style.display = 'none'; // Ocultar spinner
+            }
+        });
+    </script>
+</body>
+</html>
